@@ -6,6 +6,7 @@ authors = ["Jim Blandy <jimb@red-bean.com>"]
 [dependencies]
 bytes = "0.4.3"
 futures = "0.1.13"
+tokio-core = "0.1.6"
 tokio-io = "0.1.1"
 tokio-proto = "0.1.1"
 tokio-service = "0.1.0"

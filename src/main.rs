@@ -1,12 +1,14 @@
 extern crate bytes;
 extern crate futures;
+extern crate tokio_core;
 extern crate tokio_io;
 extern crate tokio_proto;
 extern crate tokio_service;
 
 use bytes::BytesMut;
 use futures::future::{Future, ok};
-use tokio_io::{AsyncRead, AsyncWrite};
+use tokio_core::net::TcpStream;
+use tokio_io::{AsyncRead};
 use tokio_io::codec::{Decoder, Encoder, Framed};
 use tokio_proto::TcpServer;
 use tokio_proto::pipeline::ServerProto;
@@ -57,17 +59,18 @@ impl Encoder for Utf8Lines {
 
 struct Utf8LinesProto;
 
-impl<T: AsyncRead + AsyncWrite + 'static> ServerProto<T> for Utf8LinesProto
+impl ServerProto<TcpStream> for Utf8LinesProto
 {
     type Request = String;
     type Response = String;
-    type Transport = Framed<T, Utf8Lines>;
+    type Transport = Framed<TcpStream, Utf8Lines>;
     type BindTransport = Result<Self::Transport, io::Error>;
-    fn bind_transport(&self, io: T) -> Result<Self::Transport, io::Error> {
+    fn bind_transport(&self, io: TcpStream) -> Result<Self::Transport, io::Error> {
         Ok(io.framed(Utf8Lines))
     }
 }
 
+#[derive(Default)]
 struct Reverser;
 
 impl Service for Reverser {
@@ -75,9 +78,8 @@ impl Service for Reverser {
     type Response = String;
     type Error = io::Error;
     type Future = Box<Future<Item=Self::Response, Error=io::Error>>;
-    fn call(&self, req: String) -> Self::Future {
-        println!("Sheesh, asked to reverse {:?}", req);
-        Box::new(ok(req.chars().rev().collect()))
+    fn call(&self, text: String) -> Self::Future {
+        Box::new(ok(text.chars().rev().collect()))
     }
 }
 
@@ -86,5 +88,5 @@ fn main() {
         .expect("parsing server IP address");
     let server = TcpServer::new(Utf8LinesProto, addr);
 
-    server.serve(|| Ok(Reverser));
+    server.serve(move || { Ok(Reverser) });
 }
